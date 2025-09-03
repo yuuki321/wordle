@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Multi-Player Wordle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Multi-Player Wordle</h1>
+      <div class="controls">
+        <button id="newRoomBtn">New Room</button>
+        <input id="roomCodeInput" placeholder="Room code (e.g. ABC123)" />
+        <button id="joinRoomBtn">Join</button>
+        <label class="tgl">
+          <input type="checkbox" id="spectateToggle">
+          <span>Spectate</span>
+        </label>
+        <label class="tgl">
+          <input type="checkbox" id="cbMode">
+          <span>Color-blind mode</span>
+        </label>
+      </div>
+      <div id="identity">
+        <input id="nickname" maxlength="24" placeholder="Your nickname" />
+        <span id="youId"></span>
+      </div>
+    </header>
+
+    <section id="statusBar">
+      <div id="roomInfo">Room: <span id="roomId">-</span> • Max Rounds: <span id="maxRounds">-</span></div>
+      <div id="yourStatus">Status: -</div>
+    </section>
+
+    <main id="gameArea">
+      <section id="boardContainer">
+        <div id="yourBoard">
+          <h2>Your Board</h2>
+          <div class="board" id="board"></div>
+          <div class="keyboard" id="keyboard"></div>
+          <div class="guessControls">
+            <input id="guessInput" maxlength="5" placeholder="Type 5-letter word" />
+            <button id="guessBtn">Guess</button>
+          </div>
+        </div>
+        <div id="opponents">
+          <h2>Opponents</h2>
+          <div id="opponentBoards"></div>
+        </div>
+      </section>
+
+      <aside id="sidebar">
+        <h3>Leaderboard</h3>
+        <ol id="leaderboard"></ol>
+        <h3>Help</h3>
+        <ul>
+          <li>Green = Hit</li>
+          <li>Yellow = Present</li>
+          <li>Gray = Miss</li>
+        </ul>
+      </aside>
+    </main>
+
+    <footer>
+      <div id="gameOverBanner" class="hidden"></div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

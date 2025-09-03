@@ -1,0 +1,287 @@
+:root{
+  --bg: #121212;
+  --fg: #eaeaea;
+  --panel: #1e1e1e;
+  --accent: #4caf50;
+  --hit: #6aaa64;
+  --present: #c9b458;
+  --miss: #3a3a3c;
+  --hit-cb: #4cc9f0;
+  --present-cb: #f72585;
+
+  /* Leaderboard colors */
+  --gold: #FFD700;
+  --silver: #C0C0C0;
+  --bronze: #CD7F32;
+  --white-lead: #FFFFFF;
+}
+/* -------------------------
+   ORIGINAL STYLES (preserved)
+   ------------------------- */
+*{ box-sizing: border-box; }
+body{
+  margin:0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+header{
+  padding: 12px;
+  background: var(--panel);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+header h1{
+  margin: 0;
+  font-size: 22px;
+}
+.controls{
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+}
+.controls input{
+  padding: 6px 8px; border-radius:6px; border:1px solid #333; background:#111; color:#fff;
+}
+.controls button{
+  padding:6px 10px; border:none; border-radius:6px; background:#2e7d32; color:#fff; cursor:pointer;
+}
+.controls button:hover{ filter:brightness(1.1); }
+.tgl{ display:flex; align-items:center; gap:6px; font-size: 14px; }
+
+#identity{
+  display:flex; gap:8px; align-items:center;
+}
+#identity input{
+  padding:6px 8px; border-radius:6px; border:1px solid #333; background:#111; color:#fff;
+}
+#statusBar{
+  display:flex; justify-content: space-between; padding:10px 12px; border-bottom:1px solid #222; background:#161616;
+}
+#gameArea{
+  display:grid;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
+  padding:12px;
+}
+#boardContainer{
+  display:flex; gap:16px; align-items:flex-start; flex-wrap: wrap;
+}
+#yourBoard, #opponents{
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 8px;
+  flex:1 1 340px;
+  min-width: 300px;
+}
+.board{
+  display:grid;
+  grid-template-columns: repeat(5, 48px);
+  grid-auto-rows: 48px;
+  gap:6px;
+  padding:10px 0;
+  min-height: calc(48px * 6 + 6px * 5);
+}
+.tile{
+  width:48px; height:48px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+  background:#111; border:1px solid #333; font-size:22px; font-weight:700; text-transform: uppercase;
+  transition: transform .2s ease, background .2s ease;
+}
+.tile.flip{
+  animation: flip .5s ease forwards;
+}
+@keyframes flip{
+  0%{ transform: rotateX(0deg); }
+  50%{ transform: rotateX(90deg); }
+  100%{ transform: rotateX(0deg); }
+}
+.tile.hit{ background: var(--hit); border-color: var(--hit); color:#fff; }
+.tile.present{ background: var(--present); border-color: var(--present); color:#222; }
+.tile.miss{ background: var(--miss); border-color: var(--miss); color:#ccc; }
+.cb .tile.hit{ background: var(--hit-cb); border-color: var(--hit-cb); color:#001; }
+.cb .tile.present{ background: var(--present-cb); border-color: var(--present-cb); color:#fff; }
+
+.keyboard{
+  display:grid; gap:6px; grid-template-columns: repeat(10, minmax(0,1fr)); margin-top:8px;
+}
+.key{
+  padding:8px 0; background:#2b2b2b; border:none; border-radius:6px; color:#fff; cursor:pointer; font-weight:600;
+}
+.key.small{ font-size: 12px; }
+.key.miss{ background:#3a3a3c; }
+.key.present{ background:#c9b458; color:#222; }
+.key.hit{ background:#6aaa64; }
+
+.guessControls{
+  margin-top:10px; display:flex; gap:8px;
+}
+.guessControls input{
+  flex:1; padding:8px; border-radius:6px; background:#111; border:1px solid #333; color:#fff; text-transform: uppercase;
+}
+.guessControls button{
+  padding:8px 12px; background:#1976d2; border:none; border-radius:6px; color:#fff; cursor:pointer;
+}
+
+#opponentBoards{
+  display:flex; flex-wrap: wrap; gap:12px;
+}
+.opponent{
+  background:#111; border:1px solid #333; border-radius:8px; padding:8px; width:240px;
+}
+.opponent h4{ margin:6px 0; font-size:14px; }
+.opponent .board{
+  grid-template-columns: repeat(5, 32px);
+  grid-auto-rows: 32px;
+  min-height: calc(32px * 6 + 6px * 5);
+}
+.opponent .tile{ width:32px; height:32px; font-size:16px; }
+
+#sidebar{
+  background: var(--panel);
+  border-radius:8px;
+  padding: 12px;
+  height: fit-content;
+}
+
+/* Leaderboard styling */
+#leaderboard { padding-left: 18px; margin: 6px 0; }
+#leaderboard li { margin: 6px 0; color: var(--white-lead); font-weight: 600; }
+/* Special colors */
+#leaderboard li.lead-1 { color: var(--gold); text-shadow: 0 0 6px rgba(255,215,0,0.12); }
+#leaderboard li.lead-2 { color: var(--silver); text-shadow: 0 0 6px rgba(192,192,192,0.08); }
+#leaderboard li.lead-3 { color: var(--bronze); text-shadow: 0 0 6px rgba(205,127,50,0.06); }
+#leaderboard li.lead-rest { color: var(--white-lead); opacity: 0.95; }
+
+/* Help color labels */
+.help-label { font-weight:700; margin-right:6px; }
+.help-hit { color: var(--hit); }
+.help-present { color: var(--present); color: #c9b458; }
+.help-miss { color: var(--miss); }
+
+/* Ensure help colors are readable in color-blind mode: override with CB colors */
+.cb .help-hit { color: var(--hit-cb); }
+.cb .help-present { color: var(--present-cb); }
+
+/* Banner */
+#gameOverBanner{
+  padding: 12px;
+  text-align:center;
+  font-weight: 700;
+  background: #263238;
+}
+.hidden{ display:none; }
+
+@media (max-width: 900px){
+  #gameArea{ grid-template-columns: 1fr; }
+  #sidebar{ order:-1; }
+}
+
+/* -------------------------
+   ADDITIONS (leaderboard gradients,
+   help color blocks, and background image)
+   - non-destructive: complements original rules
+   ------------------------- */
+
+/* Background image (keeps nav/header color intact).
+   Place bg.png alongside the served CSS or update the path as needed.
+   Using a layered background so the original --bg remains fallback. */
+body{
+  background-image: url("./bg.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+/* Add a subtle overlay so panels remain readable over bg.png */
+body::after{
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure panels sit above overlay */
+header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
+  position: relative;
+  z-index: 1;
+}
+
+/* Leaderboard gradient backgrounds for top ranks. Keep original color text rules but prefer gradient bg for emphasis. */
+#leaderboard li.lead-1 {
+  /* gold gradient */
+  background: linear-gradient(90deg, rgba(255,215,0,0.18), rgba(255,200,0,0.08));
+  border-radius:6px;
+  padding:6px 8px;
+  color: var(--gold);
+  text-shadow: 0 0 8px rgba(255,215,0,0.08);
+}
+#leaderboard li.lead-1::before{
+  content: "🏆";
+  margin-right:8px;
+  display:inline-block;
+}
+
+/* silver gradient */
+#leaderboard li.lead-2 {
+  background: linear-gradient(90deg, rgba(192,192,192,0.12), rgba(200,200,200,0.04));
+  border-radius:6px;
+  padding:6px 8px;
+  color: var(--silver);
+}
+#leaderboard li.lead-2::before{
+  content: "🥈";
+  margin-right:8px;
+  display:inline-block;
+}
+
+/* bronze gradient */
+#leaderboard li.lead-3 {
+  background: linear-gradient(90deg, rgba(205,127,50,0.14), rgba(205,127,50,0.04));
+  border-radius:6px;
+  padding:6px 8px;
+  color: var(--bronze);
+}
+#leaderboard li.lead-3::before{
+  content: "🥉";
+  margin-right:8px;
+  display:inline-block;
+}
+
+/* rest keep lighter background to contrast with toplists */
+#leaderboard li.lead-rest {
+  background: rgba(255,255,255,0.02);
+  border-radius:6px;
+  padding:6px 8px;
+  color: var(--white-lead);
+}
+
+/* If you prefer stronger gradients, uncomment below and adjust opacity */
+/*
+#leaderboard li.lead-1 {
+  background: linear-gradient(90deg, rgba(255,215,0,0.30), rgba(255,200,0,0.12));
+}
+*/
+
+/* Help section: make the labels colored blocks for better visibility.
+   This augments the existing .help-* color rules without changing their names. */
+.help-label { display:inline-block; padding:4px 8px; border-radius:6px; font-weight:800; color: #fff; min-width: 80px; text-align:center; }
+.help-hit { background: var(--hit); color:#fff; }
+.help-present { background: var(--present); color:#111; }
+.help-miss { background: var(--miss); color:#fff; }
+
+/* Color-blind adjustments still respected */
+.cb .help-hit { background: var(--hit-cb); color:#001; }
+.cb .help-present { background: var(--present-cb); color:#fff; }
+
+/* Minor spacing to ensure help list items align */
+#sidebar ul { padding-left: 18px; }
+#sidebar ul li { margin: 8px 0; display:flex; align-items:center; gap:10px; }
+
+/* Ensure header/nav keeps its color and remains above overlay */
+header { z-index: 2; position: relative; }
+
+/* Keep footer/panels contrast stable */
+#gameOverBanner { z-index: 1; position: relative; }
