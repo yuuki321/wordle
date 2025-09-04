@@ -20,19 +20,20 @@ Prerequisites:
 
 Steps:
 1. Clone or copy this repository structure to your machine.
+   - `git clone https://github.com/yuuki321/wordle`
 2. Create and activate a virtual environment:
    - macOS/Linux:
-     - python3.11 -m venv .venv
-     - source .venv/bin/activate
+     - `python3.11 -m venv .venv`
+     - `source .venv/bin/activate`
    - Windows (PowerShell):
-     - py -3.11 -m venv .venv
-     - .venv\Scripts\Activate.ps1
+     - `py -3.11 -m venv .venv`
+     - `.venv\Scripts\Activate.ps1`
 3. Install dependencies:
-   - pip install -r requirements.txt
+   - `python -m pip install -r requirements.txt`
 4. Run the server:
-   - uvicorn wordle.server.main:app --host 0.0.0.0 --port 8000
+   - `python -m uvicorn server.main:app --host 0.0.0.0 --port 8000`
 5. Open the client:
-   - Visit http://localhost:8000 in your browser.
+   - Visit `http://localhost:8000` in your browser.
 
 Notes:
 - The server also serves the static client from / (index.html) and /static for assets.
@@ -40,7 +41,7 @@ Notes:
 
 ## How the game runs
 
-- Open http://localhost:8000
+- Open `http://localhost:8000`
 - Choose:
   - New Room: creates a room with a random 6-character code. Share the code with friends.
   - Join: enter a room code to join as a player or toggle Spectate to watch.

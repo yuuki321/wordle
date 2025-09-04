@@ -1,6 +1,3 @@
-Certainly! Here is a list of 5,000 common 5-letter words, sorted alphabetically, suitable for your Wordle game. The words are selected based on recent and daily usage, drawing from the provided search results . Each word is presented on its own row as requested.
-
-```plaintext
 aback
 abaft
 abase
