@@ -1,18 +1,18 @@
-# Multi-Player Wordle (Server/Client, Python 3.11 + JavaScript)
+# 🎮 Multi-Player Wordle (Server/Client, Python 3.11 + JavaScript)
 
 A complete server/client Wordle that supports single-player and multi-player rooms. The server (FastAPI) holds the secret answer, validates guesses, scores them exactly like the original Wordle, and tracks high scores in SQLite. The client is a simple responsive SPA in vanilla HTML/CSS/JS.
 
 This project fulfills:
-- Task 1: Normal Wordle with configurable word list and max rounds.
-- Task 2: Server/Client with server-side validation, client never sees the answer until end.
-- Task 3: Multi-player rooms. Players race to guess the same hidden word; spectators can watch.
-- Task 4: Bells & whistles implemented:
+- Normal Wordle with configurable word list and max rounds.
+- Server/Client with server-side validation, client never sees the answer until end.
+- Multi-player rooms. Players race to guess the same hidden word; spectators can watch.
+- Bells & whistles implemented:
   - SQLite-backed high scores and a global leaderboard.
   - Spectator mode.
   - Keyboard hints and basic flip tile animation.
   - Color-blind friendly mode (toggle in header).
 
-## How to run (from scratch)
+# 🔑 How to run (from scratch)
 
 Prerequisites:
 - Python 3.11
@@ -39,7 +39,7 @@ Notes:
 - The server also serves the static client from / (index.html) and /static for assets.
 - If the port 8000 is busy, change the port in the uvicorn command and open that port instead.
 
-## How the game runs
+## ❓ How the game runs
 
 - Open `http://localhost:8000`
 - Choose:
@@ -53,7 +53,7 @@ Notes:
   - Gray (Miss): letter not in the answer.
 - The room ends once all players either win or lose. The answer is revealed to all. Results are recorded to the leaderboard.
 
-## How the game works (rules and scoring)
+## ❤️ How the game works (rules and scoring)
 
 - Exactly the original Wordle logic, including duplicates:
   - First pass marks letters that are exact matches (Hit).
@@ -65,7 +65,7 @@ Notes:
   - Max rounds (default 6). When creating a new room, this is applied server-side.
   - Word list: located at wordle/server/words.txt. You can replace it with your own list of 5-letter words.
 
-## Multi-player design (Task 3)
+## 🤝 Multi-player design
 
 Design choice:
 - Cooperative-competitive race: All players in a room are guessing the same hidden word. Each player has their own board. Everyone can see opponents’ boards updating in real time (via polling). The room ends when all players have either won or used up their max rounds.
@@ -88,7 +88,7 @@ If no player-supplied answer:
 - The server chooses a random answer from the shared word list.
 - If you want player-chosen answers, you could add a “custom word” option (see Ideas below).
 
-## API overview
+## 📝 API overview
 
 - POST /api/join
   - Request: { room_id?, player_id, nickname, max_rounds?, spectate? }
@@ -108,7 +108,7 @@ If no player-supplied answer:
 Security/trust:
 - Token is a signed room:player pairing issued by the server; prevents arbitrary querying of rooms by non-members. Tokens expire after 8 hours.
 
-## How the code works
+## 🔒 How the code works
 
 Server (Python/FastAPI):
 - wordle/server/game.py
@@ -145,7 +145,7 @@ Client (HTML/CSS/JS):
   - On-screen keyboard and input handlers.
   - Applies keyboard letter hints based on feedback.
 
-## Configuration
+## 🖼️ Configuration
 
 - Max rounds:
   - Default is 6 (server/config.py DEFAULT_MAX_ROUNDS).
@@ -154,7 +154,7 @@ Client (HTML/CSS/JS):
   - wordle/server/words.txt. Each line is a 5-letter alphabetic word.
   - Replace with your own list to customize difficulty.
 
-## Input validation and edge cases
+## 🚫 Input validation and edge cases
 
 - Server rejects guesses not in the word list (400).
 - Guess must be 5 alpha characters; otherwise 400.
@@ -162,7 +162,7 @@ Client (HTML/CSS/JS):
 - Room not found returns 404, invalid token returns 401.
 - Game over prevents further guesses (400).
 
-## Decisions and trade-offs
+## 💫 Decisions and trade-offs
 
 - In-memory rooms:
   - Simpler and fast for a single-process server. Trade-off: not persistent across restarts and not horizontally scalable. This is acceptable for a coding exercise and local play.
@@ -173,7 +173,7 @@ Client (HTML/CSS/JS):
 - SQLite for high scores:
   - Lightweight and file-based. Good enough for local/small-scale use.
 
-## Bells & whitles ideas (some implemented, some proposed)
+## 🔕 Bells & whitles ideas (some implemented, some proposed)
 
 Implemented:
 - High scores and global leaderboard (SQLite).
@@ -192,7 +192,7 @@ Not implemented but proposed (for more points):
 - Shareable results (copy a grid of emojis like Wordle).
 - Thematic word lists switcher (animals, geography, etc.).
 
-## Testing the project
+## 📝 Testing the project
 
 Manual:
 - Create a new room; in another browser window/tab, join with the room code and a different nickname. Make simultaneous guesses and watch boards update.
@@ -203,7 +203,7 @@ Automated ideas:
 - Unit tests for score_guess with duplicate letters and edge cases.
 - API tests using httpx/pytest to simulate room creation, guessing, and conclude a game.
 
-## Source code organization and conventions
+## 🌐 Source code organization and conventions
 
 - Clear separation:
   - server/: API, game logic, persistence, config, word list.
@@ -215,7 +215,7 @@ Automated ideas:
 - Future refactoring:
   - Extract WebSocket notifier, pluggable word lists, and per-room chat as modules.
 
-## Repository practice
+## 🏠 Repository practice
 
 When you push:
 - Commit logical changes in small steps, with descriptive messages:
@@ -226,7 +226,7 @@ When you push:
   - chore: add README and requirements
 - Use branches for bigger features (e.g., websocket-upgrade).
 
-## FAQ and clarifications considered
+## ❓ FAQ and clarifications considered
 
 Ambiguities asked/assumed:
 - Scoring rule: Followed the original Wordle with duplicate handling via two-pass method.
@@ -235,11 +235,11 @@ Ambiguities asked/assumed:
 - Configurations required: implemented max rounds and word list.
 - Language versions: Python 3.11 verified via requirements; vanilla JS on client.
 
-## Troubleshooting
+## ⚠️ Troubleshooting
 
 - Port already in use: change port with --port 8001 and open http://localhost:8001
 - Blank page: ensure you run uvicorn with the correct module path: wordle.server.main:app
 - DB write issues: ensure the working directory has write permissions for wordle/server/wordle.db
 - 401 Invalid token: you need to create or join a room from the client to obtain a token; tokens expire after 8 hours.
 
-Enjoy playing!
+Enjoy playing! ❤️
