@@ -1,11 +1,13 @@
 /*
 Client-side SPA logic for multi-player Wordle.
 
-Modifications added:
-- Live update of leaderboard when the user changes the nickname input.
-- Leaderboard visual ranks: gold/silver/bronze/white.
-- Help section colored labels for Hit/Present/Miss.
-- Keeps previously implemented fixes (keyboard reset, immediate reveal on any winner, flip-once animation).
+Leaderboard changes:
+- Show "Win" and "Lose" labels instead of "W"/"L".
+- Show "Guesses" (fastest_win) after each entry.
+- Display ranks respecting ties (same rank for equal metrics; skip numbers after ties).
+- Use server-provided 'rank' field and display accordingly.
+- Keep existing visual rank classes (lead-1/2/3/rest) based on position in list,
+  but display numeric rank that may be tied.
 */
 
 const api = {
@@ -35,11 +37,17 @@ const api = {
   },
   async leaderboard() {
     const res = await fetch("/api/leaderboard");
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  async clearLeaderboard() {
+    const res = await fetch("/api/leaderboard/clear", { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
 };
 
-// Simple storage for identity and session
+// storage, state, UI element references unchanged (keep previous code)
 const store = {
   loadId() {
     let id = localStorage.getItem("player_id");
@@ -74,7 +82,6 @@ const state = {
   answer: null
 };
 
-// UI elements
 const els = {
   newRoomBtn: document.getElementById("newRoomBtn"),
   joinRoomBtn: document.getElementById("joinRoomBtn"),
@@ -93,13 +100,14 @@ const els = {
   keyboard: document.getElementById("keyboard"),
   banner: document.getElementById("gameOverBanner"),
   leaderboard: document.getElementById("leaderboard"),
-  cbMode: document.getElementById("cbMode")
+  cbMode: document.getElementById("cbMode"),
+  clearLeaderboardUnder: document.getElementById("clearLeaderboardUnder"),
 };
 
-// Build on-screen keyboard
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "⟵ZXCVBNM⏎"];
 let keyState = {}; // letter -> miss/present/hit
 
+// build keyboard (same as before)
 function buildKeyboard(){
   els.keyboard.innerHTML = "";
   KEY_ROWS.forEach(row => {
@@ -116,7 +124,6 @@ function buildKeyboard(){
 }
 buildKeyboard();
 
-// Reset keyboard visual state and internal state
 function resetKeyboard(){
   keyState = {};
   for (const btn of els.keyboard.querySelectorAll(".key")) {
@@ -124,7 +131,6 @@ function resetKeyboard(){
   }
 }
 
-// Update a key color with priority (miss < present < hit)
 function setKeyColor(letter, mark){
   const priority = { "miss": 1, "present": 2, "hit": 3 };
   const cur = keyState[letter] || null;
@@ -134,19 +140,18 @@ function setKeyColor(letter, mark){
   for (const btn of els.keyboard.querySelectorAll(".key")) {
     const t = btn.textContent.toUpperCase();
     const l = (t === "ENTER" || t === "BACK") ? "" : t;
-    if (l && keyState[l]) {
+    if (l) {
       btn.classList.remove("miss","present","hit");
-      btn.classList.add(keyState[l]);
+      if (keyState[l]) btn.classList.add(keyState[l]);
     }
   }
 }
 
-// Helper to track previous board tiles across renders for flip-once animation
-window._lastBoardTiles = null;
-window._lastOpponentTiles = null;
+// flip caches (unchanged)
+let _lastBoardTiles = {};
+let _lastOpponentTiles = {};
 
-// Build your board tiles. We render rows and apply marks.
-// Animation: we only flip tiles that show a newly revealed mark compared to previously recorded tile metadata.
+// render functions (use server marks directly) remain similar; keeping flip behavior
 function renderYourBoard(){
   const me = state.players.find(p => p.player_id === state.player_id);
   const guesses = me ? me.guesses : [];
@@ -160,20 +165,17 @@ function renderYourBoard(){
       if (row){
         const ch = row.guess[c].toUpperCase();
         const mark = row.marks[c];
-        // Determine previous data from cache
-        const key = `${r}-${c}`;
-        const prev = window._lastBoardTiles && window._lastBoardTiles[key];
-        const prevLetter = prev ? prev.letter : null;
-        const prevMark = prev ? prev.mark : null;
-        const shouldFlip = !(prevLetter === ch && prevMark === mark);
         tile.textContent = ch;
         tile.classList.add(mark);
-        if (shouldFlip){
+
+        const key = `me-${r}-${c}`;
+        const prev = _lastBoardTiles[key] || { letter: null, mark: null };
+        if (prev.letter !== ch || prev.mark !== mark){
           tile.classList.add("flip");
-          tile.addEventListener("animationend", () => { tile.classList.remove("flip"); }, { once: true });
+          tile.addEventListener("animationend", () => tile.classList.remove("flip"), { once: true });
         }
-        tile.setAttribute("data-last-letter", ch);
-        tile.setAttribute("data-last-mark", mark);
+        _lastBoardTiles[key] = { letter: ch, mark: mark };
+
         setKeyColor(ch, mark);
       } else {
         tile.textContent = "";
@@ -181,30 +183,8 @@ function renderYourBoard(){
       els.board.appendChild(tile);
     }
   }
-  // After render, cache tiles
-  cacheCurrentBoardTiles();
 }
 
-function cacheCurrentBoardTiles(){
-  const nodes = els.board.querySelectorAll(".tile");
-  const cache = {};
-  const cols = 5;
-  for (let i = 0; i < nodes.length; i++){
-    const r = Math.floor(i / cols);
-    const c = i % cols;
-    const key = `${r}-${c}`;
-    const letter = nodes[i].getAttribute("data-last-letter");
-    const mark = nodes[i].getAttribute("data-last-mark");
-    if (letter || mark){
-      cache[key] = { letter: letter, mark: mark };
-    } else {
-      cache[key] = null;
-    }
-  }
-  window._lastBoardTiles = cache;
-}
-
-// Render opponents boards. Use cache to animate flip only when tile changes.
 function renderOpponents(){
   const others = state.players.filter(p => p.player_id !== state.player_id);
   els.opponentBoards.innerHTML = "";
@@ -225,19 +205,16 @@ function renderOpponents(){
         if (row){
           const ch = row.guess[c].toUpperCase();
           const mark = row.marks[c];
-          const key = `${op.player_id}-${r}-${c}`;
-          const prev = window._lastOpponentTiles && window._lastOpponentTiles[key];
-          const prevLetter = prev ? prev.letter : null;
-          const prevMark = prev ? prev.mark : null;
-          const shouldFlip = !(prevLetter === ch && prevMark === mark);
           tile.textContent = ch;
           tile.classList.add(mark);
-          if (shouldFlip){
+
+          const key = `${op.player_id}-${r}-${c}`;
+          const prev = _lastOpponentTiles[key] || { letter: null, mark: null };
+          if (prev.letter !== ch || prev.mark !== mark){
             tile.classList.add("flip");
-            tile.addEventListener("animationend", () => { tile.classList.remove("flip"); }, { once: true });
+            tile.addEventListener("animationend", () => tile.classList.remove("flip"), { once: true });
           }
-          window._lastOpponentTiles = window._lastOpponentTiles || {};
-          window._lastOpponentTiles[key] = { letter: ch, mark: mark };
+          _lastOpponentTiles[key] = { letter: ch, mark: mark };
         }
         b.appendChild(tile);
       }
@@ -247,41 +224,42 @@ function renderOpponents(){
   }
 }
 
-// Render status text
 function renderStatus(){
   els.roomId.textContent = state.room_id || "-";
   els.maxRounds.textContent = String(state.max_rounds);
   els.yourStatus.textContent = `Status: ${state.you_status.toUpperCase()} • Rounds Used: ${state.you_rounds_used}/${state.max_rounds}`;
 }
 
-// Render leaderboard with special colors and local nickname override for current player
+// Render leaderboard entries using server-supplied ranked list
 function renderLeaderboard(list){
   els.leaderboard.innerHTML = "";
   if (!Array.isArray(list)) return;
-  // If the user changed their nickname locally, ensure leaderboard reflects that for their entry
-  const localNick = store.nickname || state.nickname;
-  list.forEach((e, i) => {
+  // list elements include: player_id, nickname, wins, losses, fastest_win, rank
+  for (let i = 0; i < list.length; i++){
+    const e = list[i];
     const li = document.createElement("li");
-    // Apply rank class
+
+    // Visual class by position (not by tied rank) to preserve gold/silver/bronze styling
     const rankClass = i === 0 ? "lead-1" : (i === 1 ? "lead-2" : (i === 2 ? "lead-3" : "lead-rest"));
     li.classList.add(rankClass);
-    // If this entry matches current player_id, show the local nickname immediately
-    const displayName = (e.player_id === state.player_id) ? localNick : e.nickname;
-    li.textContent = `#${i+1} ${displayName} -- W:${e.wins} L:${e.losses}` + (e.fastest_win ? ` • Best:${e.fastest_win}` : "");
+
+    const displayName = (e.player_id === state.player_id) ? (store.nickname || state.nickname) : e.nickname;
+    const rankText = `#${e.rank}`;
+    const winText = `Win: ${e.wins}`;
+    const lossText = `Lose: ${e.losses}`;
+    const guessText = `Guess: ${e.fastest_win !== null && e.fastest_win !== undefined ? e.fastest_win : "-"}`;
+
+    li.textContent = `${rankText} ${displayName} — ${winText} • ${lossText} • ${guessText}`;
     els.leaderboard.appendChild(li);
-  });
+  }
 }
 
-// Wire help section colored labels (no index.html change required)
+// Help labels rendering (unchanged)
 function applyHelpColors(){
-  // Find the help list under sidebar (assumes the exact list order from index.html)
   const sidebar = document.getElementById("sidebar");
   if (!sidebar) return;
-  // We will replace the existing help list content with colored labels
-  const helpHeader = sidebar.querySelector("h3:nth-of-type(2)");
   const helpList = sidebar.querySelector("ul");
   if (!helpList) return;
-  // Clear any existing items and add colored ones
   helpList.innerHTML = "";
   const items = [
     { cls: "help-hit", text: "Green = Hit" },
@@ -321,11 +299,9 @@ async function submitGuess(){
     alert("Please enter a 5-letter word (A-Z).");
     return;
   }
-  // Clear input early for UX
   els.guessInput.value = "";
   try{
-    const res = await api.guess({ room_id: state.room_id, player_id: state.player_id, token: state.token, guess });
-    // Update immediately by refetching state
+    await api.guess({ room_id: state.room_id, player_id: state.player_id, token: state.token, guess });
     await refreshState();
   } catch (e){
     console.error(e);
@@ -342,18 +318,14 @@ function getErrorMessage(e){
   }
 }
 
-// Track the last state to detect when a "new game" starts or room changed
 let _last_room_id = null;
 let _last_reveal = false;
-let _last_winner_ids = [];
 
-// Refresh state from server and render; implements immediate game-over on any player's win.
 async function refreshState(){
   if (!state.room_id || !state.token) return;
   try{
     const s = await api.state({ room_id: state.room_id, player_id: state.player_id, token: state.token });
     const room_changed = (_last_room_id !== s.room_id);
-    const reveal_changed = (_last_reveal !== s.reveal_answer);
     state.max_rounds = s.max_rounds;
     state.players = s.players;
     state.you_status = s.you_status;
@@ -363,14 +335,13 @@ async function refreshState(){
     state.reveal_answer = s.reveal_answer;
     state.answer = s.answer || null;
 
-    if (room_changed || ( _last_reveal === true && s.reveal_answer === false )){
+    if (room_changed || (_last_reveal === true && s.reveal_answer === false)){
       resetKeyboard();
-      window._lastBoardTiles = null;
-      window._lastOpponentTiles = null;
+      _lastBoardTiles = {};
+      _lastOpponentTiles = {};
       els.banner.classList.add("hidden");
     }
 
-    // Immediate UX reveal if any winner exists
     const anyWinner = (s.winner_ids && s.winner_ids.length > 0);
     if (anyWinner){
       state.game_over = true;
@@ -381,10 +352,16 @@ async function refreshState(){
     renderStatus();
     renderYourBoard();
     renderOpponents();
-    // Leaderboard: use server-provided leaderboard from state (api.state returns leaderboard)
-    renderLeaderboard(s.leaderboard || []);
-    // Local override: if user changed nickname input, ensure it reflects immediately on leaderboard
-    // Handled in renderLeaderboard by checking state.player_id and store.nickname
+
+    // Leaderboard: server returns { leaderboard: [...] } from /api/state and /api/leaderboard endpoints.
+    // When /api/state includes 'leaderboard' it's the array; when using /api/leaderboard endpoint wrap accordingly.
+    let lb = s.leaderboard || null;
+    if (!lb){
+      // fallback to dedicated endpoint
+      const resp = await api.leaderboard();
+      lb = resp.leaderboard || [];
+    }
+    renderLeaderboard(lb);
 
     if (state.game_over){
       const meWon = state.winner_ids.includes(state.player_id);
@@ -399,11 +376,25 @@ async function refreshState(){
 
     _last_room_id = s.room_id;
     _last_reveal = s.reveal_answer;
-    _last_winner_ids = s.winner_ids || [];
   } catch(e){
     console.error("State error:", e);
   }
 }
+
+// clear leaderboard action (unchanged)
+els.clearLeaderboardUnder.addEventListener("click", async () => {
+  if (!confirm("This will permanently clear ALL leaderboard records. Continue?")) return;
+  try{
+    await api.clearLeaderboard();
+    const resp = await api.leaderboard();
+    const list = resp.leaderboard || [];
+    renderLeaderboard(list);
+    alert("Leaderboard cleared.");
+  }catch(e){
+    console.error(e);
+    alert("Failed to clear leaderboard: " + getErrorMessage(e));
+  }
+});
 
 // Polling loop
 let pollTimer = null;
@@ -415,6 +406,7 @@ function stopPolling(){
   if (pollTimer){ clearInterval(pollTimer); pollTimer=null; }
 }
 
+// createRoom / joinRoom / nickname wiring
 async function createRoom(){
   const nickname = els.nickname.value.trim() || state.nickname;
   try{
@@ -423,13 +415,13 @@ async function createRoom(){
     state.token = res.token;
     state.max_rounds = res.max_rounds;
     store.room = state.room_id;
-    store.token = state.token;
+    store.token = res.token;
     store.nickname = nickname;
     state.you_status = "playing";
     els.roomCodeInput.value = state.room_id;
     resetKeyboard();
-    window._lastBoardTiles = null;
-    window._lastOpponentTiles = null;
+    _lastBoardTiles = {};
+    _lastOpponentTiles = {};
     await refreshState();
     startPolling();
   }catch(e){
@@ -448,12 +440,12 @@ async function joinRoom(){
     state.token = res.token;
     state.max_rounds = res.max_rounds;
     store.room = state.room_id;
-    store.token = state.token;
+    store.token = res.token;
     store.nickname = nickname;
     state.you_status = spectate ? "spectating" : "playing";
     resetKeyboard();
-    window._lastBoardTiles = null;
-    window._lastOpponentTiles = null;
+    _lastBoardTiles = {};
+    _lastOpponentTiles = {};
     await refreshState();
     startPolling();
   } catch(e){
@@ -461,16 +453,12 @@ async function joinRoom(){
   }
 }
 
-// Update local nickname when user edits the name input and ensure leaderboard updates immediately
+// nickname live update for leaderboard display
 els.nickname.addEventListener("input", (e) => {
   const v = e.target.value.trim().slice(0,24);
   store.nickname = v;
   state.nickname = v || state.nickname;
-  // If the leaderboard currently displayed, re-render last known leaderboard by fetching latest from server-state
-  // Quick local update: if an entry matches current player_id, update its displayed name immediately.
-  // We will re-render from last fetched leaderboard if available (we keep lastLeaderboard)
   if (window._lastLeaderboard) {
-    // update the entry matching player_id
     for (let i = 0; i < window._lastLeaderboard.length; i++){
       if (window._lastLeaderboard[i].player_id === state.player_id){
         window._lastLeaderboard[i].nickname = v;
@@ -481,25 +469,18 @@ els.nickname.addEventListener("input", (e) => {
   }
 });
 
-// Keep a copy of the last leaderboard returned by the server for immediate local updates
+// small leaderboard cache wrapper
 function cacheLeaderboard(list){
   window._lastLeaderboard = Array.isArray(list) ? JSON.parse(JSON.stringify(list)) : [];
 }
+const _origRenderLeaderboard = renderLeaderboard;
+renderLeaderboard = function(list){
+  cacheLeaderboard(list);
+  _origRenderLeaderboard(list);
+};
 
-// Wire UI events
-els.newRoomBtn.addEventListener("click", createRoom);
-els.joinRoomBtn.addEventListener("click", joinRoom);
-els.guessBtn.addEventListener("click", submitGuess);
-els.guessInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter"){ submitGuess(); }
-});
-els.nickname.value = store.nickname || state.nickname;
-els.youId.textContent = `Your ID: ${state.player_id.slice(0,8)}`;
-els.roomCodeInput.value = state.room_id || "";
-
-// Color-blind mode
+// color-blind mode
 function applyCBMode(){
-  const root = document.documentElement;
   if (store.colorBlind){
     document.body.classList.add("cb");
     els.cbMode.checked = true;
@@ -514,18 +495,21 @@ els.cbMode.addEventListener("change", () => {
 });
 applyCBMode();
 
+// wire UI events
+els.newRoomBtn.addEventListener("click", createRoom);
+els.joinRoomBtn.addEventListener("click", joinRoom);
+els.guessBtn.addEventListener("click", submitGuess);
+els.guessInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter"){ submitGuess(); }
+});
+els.nickname.value = store.nickname || state.nickname;
+els.youId.textContent = `Your ID: ${state.player_id.slice(0,8)}`;
+els.roomCodeInput.value = state.room_id || "";
+
 // Auto-join if we have stored session
 if (state.room_id && state.token){
   resetKeyboard();
+  _lastBoardTiles = {};
+  _lastOpponentTiles = {};
   refreshState().then(startPolling);
 }
-
-// Intercept renderLeaderboard calls from refreshState to cache results
-// Modify refreshState slightly to cache leaderboard; To ensure cache always used, override renderLeaderboard call location:
-// We already call renderLeaderboard in refreshState; augment caching there by changing renderLeaderboard invocations to cache first.
-// So we wrap the original renderLeaderboard to also cache:
-const _origRenderLeaderboard = renderLeaderboard;
-renderLeaderboard = function(list){
-  cacheLeaderboard(list);
-  _origRenderLeaderboard(list);
-};

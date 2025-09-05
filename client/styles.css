@@ -14,6 +14,10 @@
   --silver: #C0C0C0;
   --bronze: #CD7F32;
   --white-lead: #FFFFFF;
+
+  --danger-bg: #b71c1c;
+  --danger-bg-hover: #d32f2f;
+  --danger-text: #fff;
 }
 /* -------------------------
    ORIGINAL STYLES (preserved)
@@ -153,6 +157,23 @@ header h1{
 #leaderboard li.lead-3 { color: var(--bronze); text-shadow: 0 0 6px rgba(205,127,50,0.06); }
 #leaderboard li.lead-rest { color: var(--white-lead); opacity: 0.95; }
 
+/* Danger button (red), enlarged */
+button.danger{
+  padding:12px 16px;
+  border:none;
+  border-radius:8px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  cursor:pointer;
+  margin-top: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  width: 100%;
+}
+button.danger:hover{
+  background: var(--danger-bg-hover);
+}
+
 /* Help color labels */
 .help-label { font-weight:700; margin-right:6px; }
 .help-hit { color: var(--hit); }
@@ -177,23 +198,13 @@ header h1{
   #sidebar{ order:-1; }
 }
 
-/* -------------------------
-   ADDITIONS (leaderboard gradients,
-   help color blocks, and background image)
-   - non-destructive: complements original rules
-   ------------------------- */
-
-/* Background image (keeps nav/header color intact).
-   Place bg.png alongside the served CSS or update the path as needed.
-   Using a layered background so the original --bg remains fallback. */
+/* Background image and overlay */
 body{
   background-image: url("./bg.png");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
 }
-
-/* Add a subtle overlay so panels remain readable over bg.png */
 body::after{
   content: "";
   position: fixed;
@@ -202,16 +213,13 @@ body::after{
   pointer-events: none;
   z-index: 0;
 }
-
-/* Ensure panels sit above overlay */
 header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
   position: relative;
   z-index: 1;
 }
 
-/* Leaderboard gradient backgrounds for top ranks. Keep original color text rules but prefer gradient bg for emphasis. */
+/* Leaderboard gradient backgrounds for top ranks. */
 #leaderboard li.lead-1 {
-  /* gold gradient */
   background: linear-gradient(90deg, rgba(255,215,0,0.18), rgba(255,200,0,0.08));
   border-radius:6px;
   padding:6px 8px;
@@ -223,8 +231,6 @@ header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
   margin-right:8px;
   display:inline-block;
 }
-
-/* silver gradient */
 #leaderboard li.lead-2 {
   background: linear-gradient(90deg, rgba(192,192,192,0.12), rgba(200,200,200,0.04));
   border-radius:6px;
@@ -236,8 +242,6 @@ header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
   margin-right:8px;
   display:inline-block;
 }
-
-/* bronze gradient */
 #leaderboard li.lead-3 {
   background: linear-gradient(90deg, rgba(205,127,50,0.14), rgba(205,127,50,0.04));
   border-radius:6px;
@@ -249,8 +253,6 @@ header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
   margin-right:8px;
   display:inline-block;
 }
-
-/* rest keep lighter background to contrast with toplists */
 #leaderboard li.lead-rest {
   background: rgba(255,255,255,0.02);
   border-radius:6px;
@@ -258,30 +260,21 @@ header, #gameArea, #sidebar, #yourBoard, #opponents, #leaderboard, .opponent{
   color: var(--white-lead);
 }
 
-/* If you prefer stronger gradients, uncomment below and adjust opacity */
-/*
-#leaderboard li.lead-1 {
-  background: linear-gradient(90deg, rgba(255,215,0,0.30), rgba(255,200,0,0.12));
-}
-*/
-
-/* Help section: make the labels colored blocks for better visibility.
-   This augments the existing .help-* color rules without changing their names. */
+/* Help section colored blocks */
 .help-label { display:inline-block; padding:4px 8px; border-radius:6px; font-weight:800; color: #fff; min-width: 80px; text-align:center; }
 .help-hit { background: var(--hit); color:#fff; }
 .help-present { background: var(--present); color:#111; }
 .help-miss { background: var(--miss); color:#fff; }
 
-/* Color-blind adjustments still respected */
 .cb .help-hit { background: var(--hit-cb); color:#001; }
 .cb .help-present { background: var(--present-cb); color:#fff; }
 
-/* Minor spacing to ensure help list items align */
 #sidebar ul { padding-left: 18px; }
 #sidebar ul li { margin: 8px 0; display:flex; align-items:center; gap:10px; }
 
-/* Ensure header/nav keeps its color and remains above overlay */
 header { z-index: 2; position: relative; }
-
-/* Keep footer/panels contrast stable */
 #gameOverBanner { z-index: 1; position: relative; }
+
+/* Keyboard color-blind overrides */
+.cb .key.hit { background: var(--hit-cb); color: #001; }
+.cb .key.present { background: var(--present-cb); color: #fff; }

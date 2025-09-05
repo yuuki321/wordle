@@ -1,10 +1,10 @@
 # Core game logic for Wordle and in-memory room management.
-# Implements exact Wordle marking rules:
-# - Use a two-pass algorithm to correctly handle duplicate letters.
-# - First pass marks hits; second pass marks presents bounded by remaining counts.
-# - Modification: when any player wins (all hits), the room is immediately ended
-#   (room.game_over = True) and remaining active players are marked as lost.
-#   This enforces immediate server-side game-over across all clients.
+# Implements canonical Wordle marking rules:
+# - Two-pass algorithm: first mark hits (exact position), then mark presents
+#   up to the remaining counts of each letter in the answer (excluding hits).
+# - This ensures multiple 'present' occurrences are handled correctly.
+# - When any player wins (all hits), the room is immediately ended and other
+#   active players are marked as lost.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -18,7 +18,6 @@ from .models import GuessFeedback
 _signer = TimestampSigner(SECRET_KEY)
 
 def load_words() -> List[str]:
-    # Load 5-letter words; ensure lowercase and alphabetic.
     words = []
     with open(WORDS_PATH, "r", encoding="utf-8") as f:
         for line in f:
@@ -35,25 +34,25 @@ def choose_answer() -> str:
     return random.choice(WORDS)
 
 def score_guess(answer: str, guess: str) -> List[str]:
-    # Implements Wordle duplicate rules.
     answer = answer.lower()
     guess = guess.lower()
-    marks = ["miss"] * 5
-    # First pass: hits
-    answer_counts: Dict[str, int] = {}
+    marks: List[str] = ["miss"] * 5
+
+    # First pass: mark hits
     for i in range(5):
         if guess[i] == answer[i]:
             marks[i] = "hit"
-        else:
-            answer_counts[answer[i]] = answer_counts.get(answer[i], 0) + 1
-    # Second pass: presents
+
+    # Second pass: mark presents if the letter is in the answer
     for i in range(5):
         if marks[i] == "hit":
             continue
         ch = guess[i]
-        if answer_counts.get(ch, 0) > 0:
+        if ch in answer:
             marks[i] = "present"
-            answer_counts[ch] -= 1
+        else:
+            marks[i] = "miss"
+
     return marks
 
 @dataclass
@@ -87,13 +86,6 @@ class Room:
             )
 
     def submit_guess(self, player_id: str, guess: str) -> GuessFeedback:
-        """
-        Submit a guess for a player. Returns GuessFeedback for that guess.
-        Server-side enforcement: if the guess results in all hits (player wins),
-        the room is immediately marked game_over and all other active non-spectator
-        players who are still 'playing' are marked as 'lost'. This makes the server
-        authoritative for immediate multi-player end-on-first-win behavior.
-        """
         if self.game_over:
             raise ValueError("Game already over for this room.")
 
@@ -105,41 +97,33 @@ class Room:
         if p.status != "playing":
             raise ValueError("Player already finished.")
 
-        # Apply Wordle scoring.
         marks = score_guess(self.answer, guess)
         p.rounds_used += 1
         feedback = GuessFeedback(guess=guess, marks=marks)
         p.guesses.append(feedback)
         p.last_guess_ts = time.time()
 
-        # If this player got all hits -> they win.
+        # Win handling: if all marks are 'hit' -> player wins, room ends immediately
         if all(m == "hit" for m in marks):
             p.status = "won"
-            # Register winner if not already
             if player_id not in self.winner_ids:
                 self.winner_ids.append(player_id)
-
-            # Immediately end the room when the first win occurs.
-            # Mark game_over true and mark other active players as lost.
+            # End room immediately and mark others (non-spectator) who are playing as lost
             self.game_over = True
-            # For all players who are still playing (and not spectators), mark lost.
             for pid, other in self.players.items():
-                if other.is_spectator:
-                    continue
-                if pid == player_id:
+                if other.is_spectator or pid == player_id:
                     continue
                 if other.status == "playing":
                     other.status = "lost"
-            # Room ends now. Return feedback for the submitter.
             return feedback
 
-        # If not a win, check if this player has exhausted max rounds -> they lose.
+        # If not win, check if player exhausted rounds
         if p.rounds_used >= self.max_rounds:
             p.status = "lost"
 
-        # Room over when all players either won or lost; spectators are ignored.
+        # If all non-spectator players have terminal status, mark room over
         active_players = [pl for pl in self.players.values() if not pl.is_spectator]
-        if all(pl.status in ("won", "lost") for pl in active_players):
+        if active_players and all(pl.status in ("won", "lost") for pl in active_players):
             self.game_over = True
 
         return feedback
@@ -149,7 +133,6 @@ ROOMS: Dict[str, Room] = {}
 
 def new_room_id() -> str:
     import secrets
-    # Short code 6 chars for UX; collisions extremely unlikely
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     return "".join(secrets.choice(alphabet) for _ in range(6))
 

@@ -6,29 +6,28 @@
 # - POST /api/reveal: reveal answer when game over
 # - GET  /api/words: get allowed words (for client validation optional)
 # - GET  /api/leaderboard: top players
+# - POST /api/leaderboard/clear: clear all leaderboard records
 #
 # Also serves the client static files on / (SPA).
 #
 # Run: uvicorn wordle.server.main:app --host 0.0.0.0 --port 8000
 
 from __future__ import annotations
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from typing import Optional
 from .config import CORS_ORIGINS
 from .models import (
     JoinRoomRequest, JoinRoomResponse, GuessRequest, RoomStateResponse, RevealRequest
 )
 from .game import (
-    create_room, join_room, ROOMS, room_public_state, verify_token
+    create_room, join_room, ROOMS, room_public_state, verify_token, WORDS
 )
-from .game import WORDS
-from .db import init_db, record_result, top_leaderboard
+from .db import init_db, record_result, top_leaderboard, clear_leaderboard
 
-app = FastAPI(title="Multi-Player Wordle", version="1.0.0")
+app = FastAPI(title="Multi-Player Wordle", version="1.2.1")
 
 # CORS for dev convenience
 app.add_middleware(
@@ -50,22 +49,26 @@ app.mount("/static", StaticFiles(directory=str(CLIENT_DIR)), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    # Serve index.html
     p = CLIENT_DIR / "index.html"
     return HTMLResponse(p.read_text(encoding="utf-8"))
 
 @app.get("/api/words")
 def list_words():
-    # Optional endpoint — client-side validation could use it, but server is source of truth.
+    # Do not expose the list to keep answer harder to brute-force.
     return {"count": len(WORDS)}
 
 @app.get("/api/leaderboard")
 def api_leaderboard():
     return {"leaderboard": top_leaderboard(10)}
 
+@app.post("/api/leaderboard/clear")
+def api_leaderboard_clear():
+    # Note: in production, protect with auth
+    clear_leaderboard()
+    return {"ok": True}
+
 @app.post("/api/join", response_model=JoinRoomResponse)
 def api_join(req: JoinRoomRequest):
-    # Create or join room. Client provides a stable player_id, and we issue a token.
     nickname = req.nickname.strip()[:24] or "Player"
     if req.room_id is None or req.room_id.strip() == "":
         room, token = create_room(nickname=nickname, player_id=req.player_id, max_rounds=req.max_rounds)
@@ -94,24 +97,21 @@ def api_join(req: JoinRoomRequest):
 
 @app.post("/api/guess")
 def api_guess(req: GuessRequest):
-    # Server-side validation & scoring. Client must include token.
     if not req.token or not verify_token(req.token, req.room_id, req.player_id):
         raise HTTPException(status_code=401, detail="Invalid token")
     room = ROOMS.get(req.room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    # Validate guess is in word list
+    # server-authoritative word check
     if req.guess not in WORDS:
         raise HTTPException(status_code=400, detail="Guess is not in allowed words list")
 
-    # Everything OK — score it.
     try:
         feedback = room.submit_guess(req.player_id, req.guess)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # If the player's state changed to terminal, record result.
     p = room.players[req.player_id]
     if p.status in ("won", "lost"):
         record_result(
@@ -127,7 +127,6 @@ def api_guess(req: GuessRequest):
 
 @app.get("/api/state/{room_id}", response_model=RoomStateResponse)
 def api_state(room_id: str, player_id: str, token: str):
-    # Only valid participants (or spectators with token) can query state.
     if not verify_token(token, room_id, player_id):
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -141,7 +140,6 @@ def api_state(room_id: str, player_id: str, token: str):
     reveal = room.game_over
     ans = room.answer if reveal else None
 
-    # Attach leaderboard for UX
     state = {
         **public,
         "your_id": player_id,
